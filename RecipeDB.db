@@ -1,6 +1,0 @@
-Create Table Recipe (ID INTEGER PRIMARY KEY AUTOINCREMENT, dish varchar not null);
-Create Table Ingredient (ID INTEGER PRIMARY KEY AUTOINCREMENT, food varchar not null);
-Create Table Recipe_Ingredient (ID INTEGER PRIMARY KEY AUTOINCREMENT, Recipe_ID INTEGER, Ingredient_ID INTEGER, Foreign Key (Recipe_ID) REFERENCES Recipe(ID), Foreign KEY (Ingredient_ID) REFERENCES Ingredient(ID));
-
-Select dish, group_concat(food) from Recipe join Recipe_Ingredient on Recipe.ID = Recipe_Ingredient.Recipe_ID join Ingredient on Recipe_Ingredient.Ingredient_ID = Ingredient.ID group by dish;
-
