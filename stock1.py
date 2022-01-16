@@ -16,6 +16,7 @@ class SqliteRepository:
     sql_dish_delete = "DELETE FROM Recipe WHERE ID = {};"
     sql_dish_food_all = "SELECT dish, group_concat(food) FROM Recipe JOIN Recipe_Ingredient ON Recipe.ID = Recipe_Ingredient.Recipe_ID JOIN Ingredient ON Recipe_Ingredient.Ingredient_ID = Ingredient.ID GROUP BY dish;"
     sql_dish_food_one = "SELECT dish, group_concat(food) FROM Recipe JOIN Recipe_Ingredient ON Recipe.ID = Recipe_Ingredient.Recipe_ID JOIN Ingredient ON Recipe_Ingredient.Ingredient_ID = Ingredient.ID WHERE dish = '{}' GROUP BY dish;"
+    sql_dish_all = "SELECT dish FROM Recipe;"
 
     def __init__(self):
         pass
@@ -30,7 +31,7 @@ class SqliteRepository:
             if cur.execute(self.sql_dish_count.format(dish_name)).fetchone()[0] == 0:
                 cur.execute(self.sql_dish_insert.format(dish_name))
             else:
-                return "This dish has been added in the Recipe before."
+                return "This dish has been added in the Recipe before. Please use -u to update it."
 
             recipe_id = cur.execute(self.sql_dish_id.format(dish_name)).fetchone()[0]
             for ingredient in ingredients:
@@ -74,12 +75,29 @@ class SqliteRepository:
                     result.add(dish)
             return result
 
-    def read_recipe(self, dish_name):
+    def list_recipe(self, dish_name):
         con = sqlite3.connect('test3.db')
         with con:
             cur = con.cursor()
             dish_food = cur.execute(self.sql_dish_food_one.format(dish_name)).fetchall()
             return dish_food
+
+    def list_recipes(self):
+        con = sqlite3.connect('test3.db')
+        with con:
+            cur = con.cursor()
+            dishes = cur.execute(self.sql_dish_all).fetchall()
+            return dishes
+
+    def update_recipe(self, dish_name, ingredients):
+        con = sqlite3.connect('test3.db')
+        with con:
+            cur = con.cursor()
+            if cur.execute(self.sql_dish_count.format(dish_name)).fetchall()[0] == 0:
+                return "There is no dish '{}'. If you want to add it, please use -a to add.".format(dish_name)
+            self.delete_recipe(dish_name)
+            self.add_recipe(dish_name, ingredients)
+            return "Dish '{}' has been updated.".format(dish_name)
 
 
 # This function will accept the arguments from the CLI
@@ -89,8 +107,9 @@ def main():
     group = parser.add_mutually_exclusive_group()
     group.add_argument('-a', '--add', action='store_true')
     group.add_argument('-d', '--delete', action='store_true')
-    group.add_argument('-c', '--check', action='store_true')
-    group.add_argument('-r', '--read', action='store_true')
+    group.add_argument('-q', '--query', action='store_true')
+    group.add_argument('-l', '--list', action='store_true')
+    group.add_argument('-u', '--update', action='store_true')
     # The string after -n would be assigned to name
     parser.add_argument('-n', '--name', type=str)
     # The other arguments would be stored in the ingredients
@@ -98,9 +117,10 @@ def main():
     args = parser.parse_args()
     print("add", args.add)
     print("delete", args.delete)
-    print("read", args.read)
+    print("read", args.list)
+    print("update", args.update)
     print("name", args.name)
-    print("check", args.check)
+    print("check", args.query)
     print("ingredients", args.ingredients)
 
     obj = SqliteRepository()
@@ -114,19 +134,24 @@ def main():
     # python3 currentFile.py -c chicken peanut onion
     # The above will check which dish can be cooked with these ingredients.
     # It would print ('kongpochicken', 'chicken, peanut') like ('dish', 'food1,food2,food3,...').
-    elif args.check:
+    elif args.query:
         print(obj.check_food(args.ingredients))
     # python3 currentFile.py -r -n kongpoChicken
     # The above will read the ingredients of this dish
     # It would print ('kongpochicken', 'chicken,peanut') like ('dish', 'food1,food2,food3,...').
-    elif args.read:
-        print(obj.read_recipe(args.name.lower()))
+    elif args.list:
+        if args.name:
+            print(obj.list_recipe(args.name.lower()))
+        else:
+            print(obj.list_recipes())
     # python3 currentFile.py -d -n KongpoChicken
     # The above will delete the recipe "kongpochicken" and the relative rows in the table Recipe_Ingredient.
     # The table Ingredient would not be changed.
     # If there is no recipe with this name, it will do nothing but print the prompt.
     elif args.delete:
         print(obj.delete_recipe(args.name.lower()))
+    elif args.update:
+        print(obj.update_recipe(args.name.lower(), args.ingredients))
 
 
 if __name__ == "__main__":
