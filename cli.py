@@ -1,5 +1,5 @@
 import argparse
-from repo import SqliteRepository
+from repo import *
 
 
 # This function will accept the arguments from the CLI
@@ -33,7 +33,11 @@ def main():
     # Note that if the ingredient has been in the table, it would not insert again.
     # If the recipe has been in the table, it would insert nothing and print the prompt.
     if args.add:
-        print(obj.add_recipe(args.name.lower(), args.ingredients))
+        try:
+            obj.add_recipe(args.name.lower(), args.ingredients)
+            print("Dish {} is added successfully.".format(args.name.lower()))
+        except DishExistsError:
+            print("This dish has been added in the Recipe before. Please use -u to update it.")
     # python3 currentFile.py -q chicken peanut onion
     # The above will check which dish can be cooked with these ingredients.
     # It would print ('kongpochicken', 'chicken, peanut') like ('dish', 'food1,food2,food3,...').
@@ -54,13 +58,21 @@ def main():
     # The table Ingredient would not be changed.
     # If there is no recipe with this name, it will do nothing but print the prompt.
     elif args.delete:
-        print(obj.delete_recipe(args.name.lower()))
+        try:
+            obj.delete_recipe(args.name.lower())
+            print("{} has been deleted".format(args.name.lower()))
+        except DishNotExistsError:
+            print("There is no recipe for this dish.")
     # python3 currentFile.py -u -n kongPoChicken chicken carrot onion cucumber
     # It will check if "kongpochickent" exists in Recipe.
     # If not, it will return the prompt.
     # If so, it will update the ingredients of this dish.
     elif args.update:
-        print(obj.update_recipe(args.name.lower(), args.ingredients))
+        try:
+            obj.update_recipe(args.name.lower(), args.ingredients)
+            print("Dish '{}' has been updated.".format(args.name.lower()))
+        except DishNotExistsError:
+            print("There is no dish '{}'. If you want to add it, please use -a to add.".format(args.name.lower()))
 
 
 if __name__ == "__main__":

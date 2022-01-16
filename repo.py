@@ -2,6 +2,14 @@ import argparse
 import sqlite3
 
 
+class DishExistsError(Exception):
+    pass
+
+
+class DishNotExistsError(Exception):
+    pass
+
+
 class SqliteRepository:
     sql_create_tables_script = "Create Table IF NOT EXISTS Recipe (ID INTEGER PRIMARY KEY AUTOINCREMENT, dish varchar not null);" \
                                + " Create Table IF NOT EXISTS Ingredient (ID INTEGER PRIMARY KEY AUTOINCREMENT, food varchar not null);" \
@@ -34,15 +42,14 @@ class SqliteRepository:
             if cur.execute(self.sql_dish_count.format(dish_name)).fetchone()[0] == 0:
                 cur.execute(self.sql_dish_insert.format(dish_name))
             else:
-                return "This dish has been added in the Recipe before. Please use -u to update it."
-
+                raise DishExistsError
             recipe_id = cur.execute(self.sql_dish_id.format(dish_name)).fetchone()[0]
             for ingredient in ingredients:
                 if cur.execute(self.sql_food_count.format(ingredient)).fetchone()[0] == 0:
                     cur.execute(self.sql_food_insert.format(ingredient))
                 ingredient_id = cur.execute(self.sql_food_id.format(ingredient)).fetchone()[0]
                 cur.execute(self.sql_dish_food_insert.format(recipe_id, ingredient_id))
-            return "This dish is added successfully."
+            return
 
     # delete the recipe with the name of "dishName"
     def delete_recipe(self, dish_name):
@@ -50,11 +57,11 @@ class SqliteRepository:
             cur = self.con.cursor()
             recipe = cur.execute(self.sql_dish_id_count.format(dish_name)).fetchone()
             if recipe[1] == 0:
-                return "There is no recipe for this dish."
+                raise DishNotExistsError
             recipe_id = recipe[0]
             cur.execute(self.sql_dish_food_delete.format(recipe_id))
             cur.execute(self.sql_dish_delete.format(recipe_id))
-            return dish_name + " has been deleted"
+            return
 
     # check which dishes can be cooked with these ingredients
     def check_food(self, ingredients):
@@ -88,9 +95,7 @@ class SqliteRepository:
         with self.con:
             cur = self.con.cursor()
             if cur.execute(self.sql_dish_count.format(dish_name)).fetchall()[0] == 0:
-                return "There is no dish '{}'. If you want to add it, please use -a to add.".format(dish_name)
+                raise DishNotExistsError
             self.delete_recipe(dish_name)
             self.add_recipe(dish_name, ingredients)
-            return "Dish '{}' has been updated.".format(dish_name)
-
-
+            return
