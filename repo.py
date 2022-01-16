@@ -20,6 +20,7 @@ class SqliteRepository:
     sql_dish_food_one = "SELECT dish, group_concat(food) FROM Recipe JOIN Recipe_Ingredient ON Recipe.ID = Recipe_Ingredient.Recipe_ID JOIN Ingredient ON Recipe_Ingredient.Ingredient_ID = Ingredient.ID WHERE dish = '{}' GROUP BY dish;"
     sql_dish_all = "SELECT dish FROM Recipe;"
 
+    # constructor, connect with a database and created tables
     def __init__(self, db_name):
         self.con = sqlite3.connect(db_name)
         with self.con:
@@ -68,18 +69,21 @@ class SqliteRepository:
                     result.add(dish)
             return result
 
+    # list the ingredients of this dish
     def list_recipe(self, dish_name):
         with self.con:
             cur = self.con.cursor()
             dish_food = cur.execute(self.sql_dish_food_one.format(dish_name)).fetchall()
             return dish_food
 
+    # list all the dishes in Recipe
     def list_recipes(self):
         with self.con:
             cur = self.con.cursor()
             dishes = cur.execute(self.sql_dish_all).fetchall()
             return dishes
 
+    # update ingredients of a dish
     def update_recipe(self, dish_name, ingredients):
         with self.con:
             cur = self.con.cursor()
