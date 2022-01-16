@@ -1,4 +1,4 @@
-from repo import SqliteRepository
+from repo import *
 import pytest
 
 
@@ -31,45 +31,48 @@ def db_with_data(empty_db):
 def test_add_recipe(empty_db):
     target_dish = 'kongpochicken'
     target_ingredients = ['chicken', 'peanut']
-    result = empty_db.add_recipe(target_dish, target_ingredients)
+    empty_db.add_recipe(target_dish, target_ingredients)
     con = empty_db.con
     with con:
         cur = con.cursor()
         sql_dish_food_one = "SELECT dish, group_concat(food) FROM Recipe JOIN Recipe_Ingredient ON Recipe.ID = Recipe_Ingredient.Recipe_ID JOIN Ingredient ON Recipe_Ingredient.Ingredient_ID = Ingredient.ID WHERE dish = '{}' GROUP BY dish;"
         dish_name, ingredients = cur.execute(sql_dish_food_one.format(target_dish)).fetchone()
-    assert result == "This dish is added successfully."
     assert dish_name == target_dish
     assert set(ingredients.split(',')) == set(target_ingredients)
 
 
 def test_add_recipe_again(db_with_data):
-    target_dish = 'kongpochicken'
-    target_ingredients = ['chicken', 'peanut']
-    prompt = db_with_data.add_recipe(target_dish, target_ingredients)
-    con = db_with_data.con
-    with con:
-        cur = con.cursor()
-        num_same_dish, = cur.execute(SqliteRepository.sql_dish_count.format('kongpochicken')).fetchone()
-    assert prompt == "This dish has been added in the Recipe before. Please use -u to update it."
-    assert num_same_dish == 1
+    try:
+        target_dish = 'kongpochicken'
+        target_ingredients = ['chicken', 'peanut']
+        db_with_data.add_recipe(target_dish, target_ingredients)
+    except DishExistsError:
+        assert True
+    finally:
+        con = db_with_data.con
+        with con:
+            cur = con.cursor()
+            num_same_dish, = cur.execute(SqliteRepository.sql_dish_count.format('kongpochicken')).fetchone()
+        assert num_same_dish == 1
 
 
 def test_add_same_food(db_with_data):
     target_dish = 'currychicken'
     target_ingredients = ['chicken', 'potato']
-    prompt = db_with_data.add_recipe(target_dish, target_ingredients)
+    db_with_data.add_recipe(target_dish, target_ingredients)
     con = db_with_data.con
     with con:
         cur = con.cursor()
         num_same_food, = cur.execute(SqliteRepository.sql_food_count.format('chicken')).fetchone()
     assert num_same_food == 1
-    assert prompt == "This dish is added successfully."
 
 
 def test_delete_no_recipe(db_with_data):
-    target_dish = 'currychicken'
-    prompt = "There is no recipe for this dish."
-    assert db_with_data.delete_recipe(target_dish) == prompt
+    try:
+        target_dish = 'currychicken'
+        db_with_data.delete_recipe(target_dish)
+    except DishNotExistsError:
+        assert True
 
 
 def test_delete_recipe(db_with_data):
@@ -78,12 +81,30 @@ def test_delete_recipe(db_with_data):
     with con:
         cur = con.cursor()
         dish_id, = cur.execute(SqliteRepository.sql_dish_id.format(target_dish)).fetchone()
-        prompt = db_with_data.delete_recipe(target_dish)
+        db_with_data.delete_recipe(target_dish)
         num_dish, = cur.execute(SqliteRepository.sql_dish_count.format(target_dish)).fetchone()
-        num_dish_food, = cur.execute("SELECT COUNT(ID) FROM Recipe_Ingredient WHERE Recipe_ID = {};".format(dish_id)).fetchone()
+        num_dish_food, = cur.execute(
+            "SELECT COUNT(ID) FROM Recipe_Ingredient WHERE Recipe_ID = {};".format(dish_id)).fetchone()
     assert num_dish == 0
     assert num_dish_food == 0
-    assert prompt == "kongpochicken has been deleted"
 
 
+def test_update_no_recipe(db_with_data):
+    try:
+        target_dish = 'currychicken'
+        target_ingredients = ['chicken', 'carrot']
+        db_with_data.update_recipe(target_dish, target_ingredients)
+    except DishNotExistsError:
+        assert True
 
+
+def test_update_recipe(db_with_data):
+    target_dish = 'kongpochicken'
+    target_ingredients = ['chicken', 'onion', 'carrot']
+    db_with_data.update_recipe(target_dish, target_ingredients)
+    con = db_with_data.con
+    with con:
+        cur = con.cursor()
+        dish, ingredients = cur.execute(SqliteRepository.sql_dish_food_one.format(target_dish)).fetchone()
+    assert dish == target_dish
+    assert set(ingredients.split(',')) == set(target_ingredients)
